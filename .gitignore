@@ -1,0 +1,8 @@
+debug/
+build/
+nbbuild/
+dist/
+nbdist/
+nbproject/
+Makefile
+
