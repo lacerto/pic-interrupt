@@ -2,6 +2,13 @@
 
 Using the PORTA change interrupt on a PIC16F690. This one sits in the [PICKit2 Low Pin Count Demo Board](http://ww1.microchip.com/downloads/en/DeviceDoc/Low%20Pin%20Count%20User%20Guide%2051556a.pdf).
 
+This project helped me learn how to use:
+  * interrupts
+  * delays
+  * subroutines
+  * memory reserving directives
+  * macros
+
 ## Hardware setup
 
 The demo board is connected to the PICKit2. No wiring.
