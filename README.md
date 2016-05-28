@@ -20,7 +20,7 @@ The four LEDs are controlled by the RC0-RC3 pins and the push button is connecte
 
 The program lights the four LEDs of the demo board in succession from left to right changing direction after the last LED on either side has been lit.
 
-A change interrupt for the RA3 pin of PORTA is enabled, thus when the button is pressed the interrupt handler takes over and blinks all four LEDs three times. After the interrupt has been handled the blinking from left to right and vice versa continues where it left off.
+A change interrupt for the RA3 pin of PORTA is enabled, thus when the button is pressed the interrupt handler takes over and blinks all four LEDs a couple of times. After the interrupt has been handled the blinking from left to right and vice versa continues where it left off.
 
 ## Usage
 
