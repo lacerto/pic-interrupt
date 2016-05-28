@@ -8,6 +8,7 @@ This project helped me learn how to use:
   * subroutines
   * memory reserving directives
   * macros
+  * reading from program memory
 
 ## Hardware setup
 

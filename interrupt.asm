@@ -14,7 +14,6 @@
 
 ; Constants --------------------------------------------------------------------
 
-FlashRepeat equ 0x03                ; number of flashes
 MainDelay   equ 0x03                ; delay value in the main loop
 IntDelay    equ 0x01                ; delay value in the interrupt handler
 
@@ -66,6 +65,25 @@ restore_context macro   reg, save_reg, count
     swapf   W_Save, w               ; as swapf does not affect STATUS
     endm
 
+; Read a byte from program memory and store it in a register
+read_prgmem     macro   data_location, reg
+    banksel EEADR
+    movlw   high data_location
+    movwf   EEADRH
+    movlw   low data_location
+    movwf   EEADR
+    banksel EECON1
+    bsf     EECON1, EEPGD
+    bsf     EECON1, RD
+    nop
+    nop
+    banksel EEDAT
+    movf    EEDAT, w
+    banksel reg
+    movwf   reg
+    banksel 0x00
+    endm
+
 ; RESET VECTOR -----------------------------------------------------------------
 
 RES_VECT  CODE      0x0000          ; processor reset vector
@@ -77,8 +95,7 @@ RES_VECT  CODE      0x0000          ; processor reset vector
 INT_HANDLER CODE    0x0004          ; 0x0004 - interrupt vector
     save_context    DelayCounter, DC_Save, 3
 
-    movlw   FlashRepeat             ; init counter with repeat value
-    movwf   Counter
+    read_prgmem RepeatValue, Counter ; init counter with repeat value
 
 FlashLoop:
     movlw   0x0f                    ; RC0-RC3 high
@@ -166,5 +183,9 @@ Loop:
     decfsz  DelayCounter3, f    ; (197376+3)*W instruction cycles
     goto    Loop                ; @4MhZ internal clock -> 197379 * W ms delay
     return
+
+; Data -------------------------------------------------------------------------
+
+RepeatValue db 0x00, 0x05       ; number of blinks during interrupt
 
     END
