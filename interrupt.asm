@@ -29,9 +29,42 @@ DelayCounter3   res 1
 Counter         res 1               ; flash counter
 W_Save          res 1               ; W backup
 STATUS_Save     res 1               ; STATUS backup
-DC1_Save        res 1               ; delay counter backups
-DC2_Save        res 1
-DC3_Save        res 1
+DC_Save1        res 1               ; delay counter backups
+DC_Save2        res 1
+DC_Save3        res 1
+
+; Macros -----------------------------------------------------------------------
+
+; Saves the context
+save_context    macro   reg, save_reg, count
+    movwf   W_Save                  ; save W & STATUS + counters
+    movf    STATUS, w
+    movwf   STATUS_Save
+
+    ; Save a number of key registers having common name prefixes
+    local i = 1
+    while i <= count
+        movf    reg#v(i), w
+        movwf   save_reg#v(i)
+        i += 1
+    endw
+    endm
+
+; Restores the context
+restore_context macro   reg, save_reg, count
+    ; Restore key registers
+    local i = 1
+    while i <= count
+        movf    save_reg#v(i), w
+        movwf   reg#v(i)
+        i += 1
+    endw
+
+    movf    STATUS_Save, w          ; restore W & STATUS
+    movwf   STATUS
+    swapf   W_Save, f               ; use swapf to restore W
+    swapf   W_Save, w               ; as swapf does not affect STATUS
+    endm
 
 ; RESET VECTOR -----------------------------------------------------------------
 
@@ -42,15 +75,7 @@ RES_VECT  CODE      0x0000          ; processor reset vector
 ; INTERRUPT HANDLER ------------------------------------------------------------
 
 INT_HANDLER CODE    0x0004          ; 0x0004 - interrupt vector
-    movwf   W_Save                  ; save W & STATUS + counters
-    movf    STATUS, w
-    movwf   STATUS_Save
-    movf    DelayCounter1, w
-    movwf   DC1_Save
-    movf    DelayCounter2, w
-    movwf   DC2_Save
-    movf    DelayCounter3, w
-    movwf   DC3_Save
+    save_context    DelayCounter, DC_Save, 3
 
     movlw   FlashRepeat             ; init counter with repeat value
     movwf   Counter
@@ -70,16 +95,8 @@ FlashLoop:
     movf    PORTA, w                ; read PORTA to end mismatch condition
     bcf     INTCON, RABIF           ; clear RABIF flag (interrupt served)
                                     ; see PIC16F690 doc. chapter 4.2.3
-    movf    DC1_Save, w             ; restore counters, STATUS and W
-    movwf   DelayCounter1
-    movf    DC2_Save, w
-    movwf   DelayCounter2
-    movf    DC3_Save, w
-    movwf   DelayCounter3
-    movf    STATUS_Save, w          ; restore W & STATUS
-    movwf   STATUS
-    swapf   W_Save, f               ; use swapf to restore W
-    swapf   W_Save, w               ; as swapf does not affect STATUS
+
+    restore_context DelayCounter, DC_Save, 3
 
     retfie                          ; return from interrupt
 
