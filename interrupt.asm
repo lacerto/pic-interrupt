@@ -4,47 +4,44 @@
 ; and/or modify it under the terms of the Do What The Fuck You Want
 ; To Public License, Version 2, as published by Sam Hocevar. See
 ; http://www.wtfpl.net/ and the COPYING file for more details.
-    
+
 #include "p16F690.inc"
 
 ; CONFIG -----------------------------------------------------------------------
-    
+
 ; __config 0xF0D5
  __CONFIG _FOSC_INTRCCLK & _WDTE_OFF & _PWRTE_OFF & _MCLRE_OFF & _CP_OFF & _CPD_OFF & _BOREN_OFF & _IESO_OFF & _FCMEN_OFF
 
 ; Constants --------------------------------------------------------------------
- 
-FlashRepeat equ 0x03            ; number of flashes
-MainDelay   equ 0x03            ; delay value in the main loop
-IntDelay    equ 0x01            ; delay value in the interrupt handler
- 
+
+FlashRepeat equ 0x03                ; number of flashes
+MainDelay   equ 0x03                ; delay value in the main loop
+IntDelay    equ 0x01                ; delay value in the interrupt handler
+
 ; Variables --------------------------------------------------------------------
-    
-    cblock 0x20
-        Direction                   ; flow direction
-        Display                     ; value to display using the LEDs
-        DelayCounter1               ; delay loop counters
-        DelayCounter2
-        DelayCounter3
-        Counter                     ; flash counter
-        W_Save                      ; W backup
-        STATUS_Save                 ; STATUS backup
-        DC1_Save                    ; delay counter backups
-        DC2_Save
-        DC3_Save
-    endc		  
-    
+
+    UDATA           0x20
+Direction       res 1               ; flow direction
+Display         res 1               ; value to display using the LEDs
+DelayCounter1   res 1               ; delay loop counters
+DelayCounter2   res 1
+DelayCounter3   res 1
+Counter         res 1               ; flash counter
+W_Save          res 1               ; W backup
+STATUS_Save     res 1               ; STATUS backup
+DC1_Save        res 1               ; delay counter backups
+DC2_Save        res 1
+DC3_Save        res 1
+
 ; RESET VECTOR -----------------------------------------------------------------
-    
-RES_VECT  CODE    0x0000            ; processor reset vector
-    goto    START                   ; go to beginning of program
-    nop                             ; 0x0001
-    nop                             ; 0x0002
-    nop                             ; 0x0003
+
+RES_VECT  CODE      0x0000          ; processor reset vector
+    pagesel START                   ; go to beginning of program
+    goto    START
 
 ; INTERRUPT HANDLER ------------------------------------------------------------
-    
-INT_HANDLER                         ; 0x0004 - interrupt vector
+
+INT_HANDLER CODE    0x0004          ; 0x0004 - interrupt vector
     movwf   W_Save                  ; save W & STATUS + counters
     movf    STATUS, w
     movwf   STATUS_Save
@@ -54,10 +51,10 @@ INT_HANDLER                         ; 0x0004 - interrupt vector
     movwf   DC2_Save
     movf    DelayCounter3, w
     movwf   DC3_Save
-        
+
     movlw   FlashRepeat             ; init counter with repeat value
     movwf   Counter
-    
+
 FlashLoop:
     movlw   0x0f                    ; RC0-RC3 high
     movwf   PORTC
@@ -69,7 +66,7 @@ FlashLoop:
     call    DELAY
     decfsz  Counter, f              ; decrement counter
     goto    FlashLoop               ;   not zero? loop
-    
+
     movf    PORTA, w                ; read PORTA to end mismatch condition
     bcf     INTCON, RABIF           ; clear RABIF flag (interrupt served)
                                     ; see PIC16F690 doc. chapter 4.2.3
@@ -83,37 +80,35 @@ FlashLoop:
     movwf   STATUS
     swapf   W_Save, f               ; use swapf to restore W
     swapf   W_Save, w               ; as swapf does not affect STATUS
-    
+
     retfie                          ; return from interrupt
 
 ; MAIN PROG --------------------------------------------------------------------
-    
+
+MAIN_PROG   CODE
 START
-    bcf     STATUS, RP1             ; select bank 1
-    bsf     STATUS, RP0
-    
+    banksel TRISC
     movlw   0xf0                    ; set RC0-RC3 as outputs
     andwf   TRISC, f
-    
-    bsf     IOCA, IOCA3             ; RA3 interrupt on change enabled
-    
-    bcf     STATUS, RP0             ; select bank 0
 
+    bsf     IOCA, IOCA3             ; RA3 interrupt on change enabled
+
+    banksel PORTA
     movf    PORTA, w                ; read PORTA to avoid mismatch condition
     bcf     INTCON, RABIF           ; clear PORTA/PORTB change interrupt flag
-    
+
     bsf     INTCON, RABIE           ; enable change interrupt
     bsf     INTCON, GIE             ; enable interrupts
 
-    clrf   Direction                ; init direction (0: rotate right; 1: rlf)
-    
+    clrf    Direction               ; init direction (0: rotate right; 1: rlf)
+
     movlw   0x08                    ; init display (sets RC3 high)
     movwf   Display
-    
+
 MainLoop:
     movf    Display, w              ; Display -> PORTC
     movwf   PORTC
-    
+
     movlw   MainDelay               ; delay
     call    DELAY
 
@@ -129,7 +124,7 @@ RotateRight:                        ;   yes - rotate right
     movlw   0x02                    ;        2 -> Display
     movwf   Display
     goto    MainLoop
-    
+
 RotateLeft:
     bcf     STATUS, C               ; clear carry bit
     rlf     Display, f              ; rotate Display bits left
@@ -140,11 +135,11 @@ RotateLeft:
     movwf   Display
     goto    MainLoop
 
-; Subroutines ------------------------------------------------------------------   
-    
+; Subroutines ------------------------------------------------------------------
+
 DELAY
     movwf   DelayCounter3       ; W -> DelayCounter3
-    clrf    DelayCounter1       ; ~ 0.2s * W 
+    clrf    DelayCounter1       ; ~ 0.2s * W
     clrf    DelayCounter2
 Loop:
     decfsz  DelayCounter1, f    ; 3*256 = 768 instruction cycles
@@ -154,5 +149,5 @@ Loop:
     decfsz  DelayCounter3, f    ; (197376+3)*W instruction cycles
     goto    Loop                ; @4MhZ internal clock -> 197379 * W ms delay
     return
-    
+
     END
