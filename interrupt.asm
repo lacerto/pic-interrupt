@@ -21,6 +21,7 @@ IntDelay    equ 0x01            ; delay value in the interrupt handler
 ; Variables --------------------------------------------------------------------
     
     cblock 0x20
+        Direction                   ; flow direction
         Display                     ; value to display using the LEDs
         DelayCounter1               ; delay loop counters
         DelayCounter2
@@ -66,7 +67,7 @@ FlashLoop:
     movwf   PORTC                   ; RC0-RC3 low
     movlw   IntDelay
     call    DELAY
-    decfsz  Counter                 ; decrement counter
+    decfsz  Counter, f              ; decrement counter
     goto    FlashLoop               ;   not zero? loop
     
     movf    PORTA, w                ; read PORTA to end mismatch condition
@@ -98,12 +99,14 @@ START
     
     bcf     STATUS, RP0             ; select bank 0
 
-    movf    PORTA                   ; read PORTA to avoid mismatch condition
+    movf    PORTA, w                ; read PORTA to avoid mismatch condition
     bcf     INTCON, RABIF           ; clear PORTA/PORTB change interrupt flag
     
     bsf     INTCON, RABIE           ; enable change interrupt
     bsf     INTCON, GIE             ; enable interrupts
 
+    clrf   Direction                ; init direction (0: rotate right; 1: rlf)
+    
     movlw   0x08                    ; init display (sets RC3 high)
     movwf   Display
     
@@ -114,12 +117,28 @@ MainLoop:
     movlw   MainDelay               ; delay
     call    DELAY
 
+    btfsc   Direction, 0            ; Direction == 0?
+    goto    RotateLeft              ;   no - rotate left
+
+RotateRight:                        ;   yes - rotate right
     bcf     STATUS, C               ; clear carry bit
-    rrf     Display, f              ; rotate Display byte right
-    btfsc   STATUS, C               ; is carry clear?
-    bsf     Display, 3              ;   no - set 3. bit (0x08)
-        
+    rrf     Display, f              ; rotate Display bits right
+    btfss   STATUS, C               ; is carry clear?
     goto    MainLoop                ;   yes - repeat
+    bsf     Direction, 0            ;   no - set direction to 1
+    movlw   0x02                    ;        2 -> Display
+    movwf   Display
+    goto    MainLoop
+    
+RotateLeft:
+    bcf     STATUS, C               ; clear carry bit
+    rlf     Display, f              ; rotate Display bits left
+    btfss   Display, 4              ; did it overflow? (we only have 4 LEDS)
+    goto    MainLoop                ;   no - repeat
+    bcf     Direction, 0            ;   yes - set direction to 0
+    movlw   0x04                    ;         4 -> Display
+    movwf   Display
+    goto    MainLoop
 
 ; Subroutines ------------------------------------------------------------------   
     
